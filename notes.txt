@@ -1,0 +1,3 @@
+python scripts/prepare_data.py
+python scripts/extract_embeddings.py
+python scripts/run_baseline.py

@@ -1,0 +1,50 @@
+# ADM 2026 Competition Config
+# All settings in one place — scripts read from here
+
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  embeddings: "data/processed/embeddings"
+  submissions: "data/submissions"
+
+embedding:
+  model_name: "paraphrase-multilingual-MiniLM-L12-v2"
+  batch_size: 256
+  normalize: true
+  max_description_length: 200
+
+validation:
+  n_positive: 3000
+  n_negative: 12000
+  seed: 42
+
+classifier:
+  model_type: "lightgbm"  # lightgbm or random_forest
+  lightgbm:
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.05
+    num_leaves: 31
+    min_child_samples: 20
+    scale_pos_weight: 4.0
+  random_forest:
+    n_estimators: 300
+    max_depth: 10
+    class_weight: "balanced"
+  cv_folds: 5
+
+currency:
+  # Exchange rates to EUR (approximate)
+  sk: 1.0
+  hr: 1.0
+  lv: 1.0
+  si: 1.0
+  gr: 1.0
+  it: 1.0
+  lt: 1.0
+  ee: 1.0
+  cz: 0.04       # 1/25
+  bg: 0.5112     # 1/1.956
+  hu: 0.0025     # 1/400
+  ro: 0.2        # 1/5
+  pl: 0.2326     # 1/4.3
