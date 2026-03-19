@@ -1,0 +1,14 @@
+TZ2YXB513MOLB3QCH3EQ
+
+- add image features - where images ? 
+- keep lightGBM for now 
+- try one of: 
+    paraphrase-multilingual-mpnet-base-v2 — 768 dims, same family but bigger. Should give better similarity scores, especially for cross-lingual pairs.
+    intfloat/multilingual-e5-large — one of the best multilingual models available. Slower but more accurate.
+- more engineered features:
+    More engineered features — means creating new columns from the existing data that capture patterns the current features miss. Some ideas:
+    Brand extraction — titles often contain the brand name ("Soma JACQUEMUS", "Τσάντα JACQUEMUS"). If you extract the brand string and check if two items share it, that's a very strong signal. You could do this with a simple heuristic: the last word or any word that appears in multiple geos.
+    Title word overlap — count how many words two titles share after lowercasing. "Baleríny Clarks" and "Balerinke Clarks" share "Clarks" even without embeddings.
+    Price rank within geo — instead of raw EUR price, compute whether two items are in the same price percentile within their respective geos. A €50 item in Italy and a €50 item in Greece are in similar market positions.
+    Department + color combo — instead of separate Jaccard scores, check if two items have the exact same department AND color combination.
+    Description length similarity — items that are the same product from different shops might have similar description lengths.

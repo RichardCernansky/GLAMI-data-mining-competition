@@ -1,5 +1,8 @@
 # Data Flow: run_baseline.py
 
+## My notes
+
+
 ## Overview
 
 The baseline script takes prepared data + precomputed embeddings, computes group-level features, trains a classifier, and generates submissions.

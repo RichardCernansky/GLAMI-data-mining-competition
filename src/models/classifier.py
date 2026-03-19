@@ -9,6 +9,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import f1_score, precision_score, recall_score
 from src.utils import load_config
 
+
 def train_lightgbm(X_train, y_train, X_val=None, y_val=None, config=None):
     """Train a LightGBM classifier using params from config."""
     if config is None:
@@ -86,6 +87,7 @@ def cross_validate(X, y, config=None):
     n_splits = config["classifier"]["cv_folds"]
     model_type = config["classifier"]["model_type"]
 
+    # use stratified K-fold because number of labels {0,1} are in ratio 80:20
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
     fold_metrics = []
     all_proba = np.zeros(len(y))

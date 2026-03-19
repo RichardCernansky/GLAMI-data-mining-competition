@@ -62,21 +62,20 @@ def main():
     val_groups = val_groups.drop(columns=["label"])
 
     print("Loading embeddings...")
-    train_emb = np.load(os.path.join(emb_dir, "train_embeddings.npy"))
-    train_ids = np.load(os.path.join(emb_dir, "train_ids.npy"))
+    train_emb = np.load(os.path.join(emb_dir, "train_embeddings.npy")) # row i : embeddings 
+    train_ids = np.load(os.path.join(emb_dir, "train_ids.npy")) # row i : itemID (connect to embedding row i)
     phase1_emb = np.load(os.path.join(emb_dir, "phase1_embeddings.npy"))
     phase1_ids = np.load(os.path.join(emb_dir, "phase1_ids.npy"))
 
-    # =============================================
+
     # 2. LOOKUPS
-    # =============================================
+    # build lookups itemID : raw_features; itemID : embeddings
     item_lookup, embedding_lookup = build_lookups(
         train, phase1, train_emb, train_ids, phase1_emb, phase1_ids
     )
 
-    # =============================================
     # 3. VALIDATION FEATURES
-    # =============================================
+    # compute single features from pairwise feature within the groups
     print(f"\nComputing features for {len(val_groups)} validation groups...")
     t0 = time.time()
     val_features = compute_group_features_batch(val_groups, item_lookup, embedding_lookup)
@@ -85,9 +84,9 @@ def main():
     print(f"\nFeatures: {val_features.columns.tolist()}")
     print(val_features.describe().round(4).to_string())
 
-    # =============================================
+
     # 4. BASELINE 1: Threshold on emb_max
-    # =============================================
+    # across different thresholds: comparison max(pairwise_cossim(emb1, emb2)) , threshold ) -> compute the F1 score on the bool >= threshold
     print("\n" + "=" * 60)
     print("BASELINE 1: Threshold on emb_max")
     print("=" * 60)
@@ -102,16 +101,15 @@ def main():
         rec = recall_score(val_labels, preds)
         print(f"  {t:>10.2f}  {f1:>8.4f}  {prec:>10.4f}  {rec:>8.4f}")
 
-    # =============================================
     # 5. BASELINE 2: LightGBM
-    # =============================================
+
     print("\n" + "=" * 60)
     print(f"BASELINE 2: {config['classifier']['model_type'].upper()}")
     print("=" * 60)
 
     print(f"\n{config['classifier']['cv_folds']}-fold cross-validation:")
     fold_metrics, best_threshold, overall_metrics = cross_validate(
-        val_features, val_labels, config
+        val_features, val_labels, config # val_features and val_labels are row aligned
     )
 
     print("\nTraining final model on all validation data...")
@@ -131,9 +129,7 @@ def main():
     task1_features = compute_group_features_batch(task1, item_lookup, embedding_lookup)
     print(f"  Done in {time.time() - t0:.1f}s")
 
-    # =============================================
     # 7. SUBMISSIONS
-    # =============================================
     # A: threshold
     thresh_val, thresh_metrics = find_best_threshold(
         val_labels, val_features["emb_max"].values
@@ -146,9 +142,8 @@ def main():
     # B: LightGBM
     task1_proba = final_model.predict_proba(task1_features)[:, 1]
     task1_preds_lgb = (task1_proba >= best_threshold).astype(int)
-    sub_lgb = pd.DataFrame({"prediction": task1_preds_lgb})
-    sub_lgb_path = os.path.join(sub_dir, "submission_lightgbm.csv")
-    sub_lgb.to_csv(sub_lgb_path, index=False)
+    sub_lgb_path = os.path.join(sub_dir, "submission_lightgbm.txt")
+    np.savetxt(sub_lgb_path, task1_preds_lgb, fmt="%d")
 
     print(f"\n{'='*60}")
     print("SUBMISSIONS")
