@@ -24,19 +24,32 @@ def price_similarity(price_a, price_b):
     return min(price_a, price_b) / max(price_a, price_b)
 
 
-def compute_pairwise_features(group_item_ids, item_lookup, embedding_lookup):
+def compute_pairwise_features(group_item_ids, item_lookup, embedding_lookup,
+                               img_embedding_lookup=None):
     """
     Compute pairwise features for all 10 pairs in a group of 5 items.
+
+    Args:
+        group_item_ids: list of 5 itemIds
+        item_lookup: dict itemId -> row data
+        embedding_lookup: dict itemId -> text embedding vector
+        img_embedding_lookup: dict itemId -> image embedding vector (optional)
 
     Returns dict of aggregated group-level features.
     """
     items = []
     embeddings = []
+    img_embeddings = []
     for item_id in group_item_ids:
         items.append(item_lookup.get(item_id))
         embeddings.append(embedding_lookup.get(item_id))
+        if img_embedding_lookup is not None:
+            img_embeddings.append(img_embedding_lookup.get(item_id))
+        else:
+            img_embeddings.append(None)
 
     emb_sims = []
+    img_sims = []
     dept_sims = []
     color_sims = []
     price_sims = []
@@ -46,9 +59,14 @@ def compute_pairwise_features(group_item_ids, item_lookup, embedding_lookup):
         if items[i] is None or items[j] is None:
             continue
 
-        # Cosine similarity (embeddings are L2-normalized)
+        # Text cosine similarity (L2-normalized)
         if embeddings[i] is not None and embeddings[j] is not None:
             emb_sims.append(float(np.dot(embeddings[i], embeddings[j])))
+
+        # Image cosine similarity (L2-normalized)
+        if img_embeddings[i] is not None and img_embeddings[j] is not None:
+            sim = float(np.dot(img_embeddings[i], img_embeddings[j]))
+            img_sims.append(sim)
 
         # Department Jaccard
         dept_sims.append(jaccard_similarity(
@@ -70,18 +88,27 @@ def compute_pairwise_features(group_item_ids, item_lookup, embedding_lookup):
 
     features = {}
 
-    # Embedding features
+    # Text embedding features
     if emb_sims:
         features["emb_max"] = max(emb_sims)
         features["emb_mean"] = np.mean(emb_sims)
         features["emb_min"] = min(emb_sims)
-        # 2nd highest — useful when multiple duplicates exist
         features["emb_2nd"] = sorted(emb_sims, reverse=True)[1] if len(emb_sims) > 1 else emb_sims[0]
     else:
         features["emb_max"] = 0.0
         features["emb_mean"] = 0.0
         features["emb_min"] = 0.0
         features["emb_2nd"] = 0.0
+
+    # Image embedding features
+    if img_sims:
+        features["img_max"] = max(img_sims)
+        features["img_mean"] = np.mean(img_sims)
+        features["img_2nd"] = sorted(img_sims, reverse=True)[1] if len(img_sims) > 1 else img_sims[0]
+    else:
+        features["img_max"] = 0.0
+        features["img_mean"] = 0.0
+        features["img_2nd"] = 0.0
 
     # Department features
     if dept_sims:
@@ -115,13 +142,16 @@ def compute_pairwise_features(group_item_ids, item_lookup, embedding_lookup):
         features["same_geo_max"] = 0.0
         features["same_geo_mean"] = 0.0
 
-    # Combined signal: best pair has high embedding AND same department
+    # Combined signals
     features["emb_x_dept_max"] = features["emb_max"] * features["dept_max"]
+    features["img_x_dept_max"] = features["img_max"] * features["dept_max"]
+    features["emb_x_img_max"] = features["emb_max"] * features["img_max"]
 
     return features
 
 
-def compute_group_features_batch(groups_df, item_lookup, embedding_lookup):
+def compute_group_features_batch(groups_df, item_lookup, embedding_lookup,
+                                  img_embedding_lookup=None):
     """
     Compute features for all groups in a DataFrame.
 
@@ -133,7 +163,9 @@ def compute_group_features_batch(groups_df, item_lookup, embedding_lookup):
     for idx in range(len(groups_df)):
         row = groups_df.iloc[idx]
         group_ids = [row[c] for c in item_cols]
-        features = compute_pairwise_features(group_ids, item_lookup, embedding_lookup)
+        features = compute_pairwise_features(
+            group_ids, item_lookup, embedding_lookup, img_embedding_lookup
+        )
         all_features.append(features)
 
         if (idx + 1) % 2000 == 0:

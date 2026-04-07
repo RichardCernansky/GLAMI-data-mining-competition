@@ -4,11 +4,12 @@
 paths:
   raw_data: "data/raw"
   processed_data: "data/processed"
-  embeddings: "data/processed/embeddings"
+  embeddings: "data/processed/embeddings_miniLM"
   submissions: "data/submissions"
+  images: "data/raw/fit_dataset_images"
 
 embedding:
-  model_name: "paraphrase-multilingual-MiniLM-L12-v2"
+  model_name: "paraphrase-multilingual-mpnet-base-v2"
   batch_size: 256
   normalize: true
   max_description_length: 200

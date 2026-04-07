@@ -23,23 +23,40 @@ from src.models.classifier import (
 from src.evaluation.metrics import print_evaluation
 
 
-def build_lookups(train, phase1, train_emb, train_ids, phase1_emb, phase1_ids):
-    """Build item lookup and embedding lookup dicts."""
+def build_lookups(train, phase1, train_emb, train_ids, phase1_emb, phase1_ids,
+                  train_img_emb=None, train_img_has=None,
+                  phase1_img_emb=None, phase1_img_has=None):
+    """Build item lookup, text embedding lookup, and optional image embedding lookup."""
     print("Building lookups...")
+
+    # Item lookup
     item_lookup = {}
     for _, row in train.iterrows():
         item_lookup[row["itemId"]] = row
     for _, row in phase1.iterrows():
         item_lookup[row["itemId"]] = row
 
+    # Text embedding lookup
     embedding_lookup = {}
     for i, item_id in enumerate(train_ids):
         embedding_lookup[item_id] = train_emb[i]
     for i, item_id in enumerate(phase1_ids):
         embedding_lookup[item_id] = phase1_emb[i]
 
-    print(f"  Items: {len(item_lookup)}, Embeddings: {len(embedding_lookup)}")
-    return item_lookup, embedding_lookup
+    # Image embedding lookup (only for items that have images)
+    img_embedding_lookup = None
+    if train_img_emb is not None:
+        img_embedding_lookup = {}
+        for i, item_id in enumerate(train_ids):
+            if train_img_has[i]:
+                img_embedding_lookup[item_id] = train_img_emb[i]
+        for i, item_id in enumerate(phase1_ids):
+            if phase1_img_has[i]:
+                img_embedding_lookup[item_id] = phase1_img_emb[i]
+        print(f"  Image embeddings: {len(img_embedding_lookup)} items")
+
+    print(f"  Items: {len(item_lookup)}, Text embeddings: {len(embedding_lookup)}")
+    return item_lookup, embedding_lookup, img_embedding_lookup
 
 
 def main():
@@ -61,32 +78,54 @@ def main():
     val_labels = val_groups["label"].values
     val_groups = val_groups.drop(columns=["label"])
 
-    print("Loading embeddings...")
-    train_emb = np.load(os.path.join(emb_dir, "train_embeddings.npy")) # row i : embeddings 
-    train_ids = np.load(os.path.join(emb_dir, "train_ids.npy")) # row i : itemID (connect to embedding row i)
+    print("Loading text embeddings...")
+    train_emb = np.load(os.path.join(emb_dir, "train_embeddings.npy"))
+    train_ids = np.load(os.path.join(emb_dir, "train_ids.npy"))
     phase1_emb = np.load(os.path.join(emb_dir, "phase1_embeddings.npy"))
     phase1_ids = np.load(os.path.join(emb_dir, "phase1_ids.npy"))
 
+    # Load image embeddings if available
+    train_img_emb = None
+    train_img_has = None
+    phase1_img_emb = None
+    phase1_img_has = None
 
+    img_emb_path = os.path.join(emb_dir, "train_img_embeddings.npy")
+    if os.path.exists(img_emb_path):
+        print("Loading image embeddings...")
+        train_img_emb = np.load(os.path.join(emb_dir, "train_img_embeddings.npy"))
+        train_img_has = np.load(os.path.join(emb_dir, "train_img_has_image.npy"))
+        phase1_img_emb = np.load(os.path.join(emb_dir, "phase1_img_embeddings.npy"))
+        phase1_img_has = np.load(os.path.join(emb_dir, "phase1_img_has_image.npy"))
+        print(f"  Train images: {train_img_has.sum()}/{len(train_img_has)}")
+        print(f"  Phase1 images: {phase1_img_has.sum()}/{len(phase1_img_has)}")
+    else:
+        print("No image embeddings found — running without images.")
+
+    # =============================================
     # 2. LOOKUPS
-    # build lookups itemID : raw_features; itemID : embeddings
-    item_lookup, embedding_lookup = build_lookups(
-        train, phase1, train_emb, train_ids, phase1_emb, phase1_ids
+    # =============================================
+    item_lookup, embedding_lookup, img_embedding_lookup = build_lookups(
+        train, phase1, train_emb, train_ids, phase1_emb, phase1_ids,
+        train_img_emb, train_img_has, phase1_img_emb, phase1_img_has
     )
 
+    # =============================================
     # 3. VALIDATION FEATURES
-    # compute single features from pairwise feature within the groups
+    # =============================================
     print(f"\nComputing features for {len(val_groups)} validation groups...")
     t0 = time.time()
-    val_features = compute_group_features_batch(val_groups, item_lookup, embedding_lookup)
+    val_features = compute_group_features_batch(
+        val_groups, item_lookup, embedding_lookup, img_embedding_lookup
+    )
     print(f"  Done in {time.time() - t0:.1f}s")
 
-    print(f"\nFeatures: {val_features.columns.tolist()}")
+    print(f"\nFeatures ({len(val_features.columns)}): {val_features.columns.tolist()}")
     print(val_features.describe().round(4).to_string())
 
-
+    # =============================================
     # 4. BASELINE 1: Threshold on emb_max
-    # across different thresholds: comparison max(pairwise_cossim(emb1, emb2)) , threshold ) -> compute the F1 score on the bool >= threshold
+    # =============================================
     print("\n" + "=" * 60)
     print("BASELINE 1: Threshold on emb_max")
     print("=" * 60)
@@ -101,15 +140,16 @@ def main():
         rec = recall_score(val_labels, preds)
         print(f"  {t:>10.2f}  {f1:>8.4f}  {prec:>10.4f}  {rec:>8.4f}")
 
+    # =============================================
     # 5. BASELINE 2: LightGBM
-
+    # =============================================
     print("\n" + "=" * 60)
     print(f"BASELINE 2: {config['classifier']['model_type'].upper()}")
     print("=" * 60)
 
     print(f"\n{config['classifier']['cv_folds']}-fold cross-validation:")
     fold_metrics, best_threshold, overall_metrics = cross_validate(
-        val_features, val_labels, config # val_features and val_labels are row aligned
+        val_features, val_labels, config
     )
 
     print("\nTraining final model on all validation data...")
@@ -126,18 +166,21 @@ def main():
     # =============================================
     print(f"\nComputing features for {len(task1)} task1 groups...")
     t0 = time.time()
-    task1_features = compute_group_features_batch(task1, item_lookup, embedding_lookup)
+    task1_features = compute_group_features_batch(
+        task1, item_lookup, embedding_lookup, img_embedding_lookup
+    )
     print(f"  Done in {time.time() - t0:.1f}s")
 
+    # =============================================
     # 7. SUBMISSIONS
+    # =============================================
     # A: threshold
     thresh_val, thresh_metrics = find_best_threshold(
         val_labels, val_features["emb_max"].values
     )
     task1_preds_thresh = (task1_features["emb_max"] >= thresh_val).astype(int).values
-    sub_thresh = pd.DataFrame({"prediction": task1_preds_thresh})
-    sub_thresh_path = os.path.join(sub_dir, "submission_threshold.csv")
-    sub_thresh.to_csv(sub_thresh_path, index=False)
+    sub_thresh_path = os.path.join(sub_dir, "submission_threshold.txt")
+    np.savetxt(sub_thresh_path, task1_preds_thresh, fmt="%d")
 
     # B: LightGBM
     task1_proba = final_model.predict_proba(task1_features)[:, 1]

@@ -1,0 +1,4 @@
+RUN
+python scripts/run.py                  # submission_phase2.csv
+python scripts/run.py --validate       # score with current config
+python scripts/run.py --validate --grid  #  grid search all combos

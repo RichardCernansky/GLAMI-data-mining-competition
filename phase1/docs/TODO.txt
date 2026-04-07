@@ -12,3 +12,5 @@ TZ2YXB513MOLB3QCH3EQ
     Price rank within geo — instead of raw EUR price, compute whether two items are in the same price percentile within their respective geos. A €50 item in Italy and a €50 item in Greece are in similar market positions.
     Department + color combo — instead of separate Jaccard scores, check if two items have the exact same department AND color combination.
     Description length similarity — items that are the same product from different shops might have similar description lengths.
+
+PHASE2
