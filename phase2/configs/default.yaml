@@ -14,15 +14,21 @@ embedding:
 
 faiss:
   k_neighbors: 20
-  edge_threshold: 0.85
-  use_image: false 
+  edge_threshold: 0.965
+  use_image: true 
   text_weight: 0.6
   image_weight: 0.4
   n_cells: 400
-  n_probe: 20
+  n_probe: 40
 
 clustering:
+  algorithm: leiden  # leiden | louvain  (pip install leidenalg igraph for leiden)
   resolution: 1.0
+
+scorer:
+  model_path: "../phase1/data/processed/edge_scorer.joblib"          # set to path of edge_scorer.joblib after training
+  initial_threshold: 0.6      # loose FAISS pre-filter when scorer is active (more candidates)
+  lgbm_threshold: 0.96         # LightGBM probability threshold to keep an edge
 
 currency:
   sk: 1.0

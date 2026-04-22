@@ -15,7 +15,7 @@ from collections import defaultdict
 
 from src.utils import load_config
 from src.graph import combine_embeddings, build_faiss_index, query_neighbors, build_edges, build_nx_graph
-from src.clustering import run_louvain, compute_confidence, build_submission, print_cluster_stats
+from src.clustering import run_clustering, compute_confidence, build_submission, print_cluster_stats
 
 
 SAMPLE_SIZE = 200_000
@@ -24,19 +24,37 @@ SEED = 42
 
 # ── Scoring ────────────────────────────────────────────────────────────────────
 
-def bcubed_f1(true_labels, pred_labels):
-    n = len(true_labels)
-    precision_sum = recall_sum = 0.0
-    for i in range(n):
-        same_pred = (pred_labels == pred_labels[i])
-        same_true = (true_labels == true_labels[i])
-        correct = (same_pred & same_true).sum()
-        precision_sum += correct / same_pred.sum()
-        recall_sum    += correct / same_true.sum()
-    p = precision_sum / n
-    r = recall_sum / n
+def pairwise_f1(true_labels, pred_labels):
+    """Pairwise F1 — matches the competition's evaluation metric exactly."""
+    true_clusters = defaultdict(list)
+    pred_clusters = defaultdict(list)
+    for i, (t, p) in enumerate(zip(true_labels, pred_labels)):
+        true_clusters[t].append(i)
+        pred_clusters[p].append(i)
+
+    tp = 0
+    total_pred = 0
+    total_true = 0
+
+    for nodes in pred_clusters.values():
+        n = len(nodes)
+        total_pred += n * (n - 1) // 2
+        sub = defaultdict(int)
+        for node in nodes:
+            sub[true_labels[node]] += 1
+        for count in sub.values():
+            tp += count * (count - 1) // 2
+
+    for nodes in true_clusters.values():
+        n = len(nodes)
+        total_true += n * (n - 1) // 2
+
+    fp = total_pred - tp
+    fn = total_true - tp
+    p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
-    return {"bcubed_f1": round(f1, 4), "bcubed_p": round(p, 4), "bcubed_r": round(r, 4)}
+    return {"pairwise_f1": round(f1, 4), "pairwise_p": round(p, 4), "pairwise_r": round(r, 4)}
 
 
 def confidence_calibration(clusters, G, true_labels):
@@ -54,35 +72,24 @@ def confidence_calibration(clusters, G, true_labels):
     print(df.groupby("conf_bin", observed=True)["is_pure"].agg(["mean", "count"]).to_string())
 
 
-# ── Core pipeline ──────────────────────────────────────────────────────────────
-
-def run_pipeline(embeddings, k, threshold, resolution, n_cells=400, n_probe=20):
-    index = build_faiss_index(embeddings, n_cells=n_cells, n_probe=n_probe)
-    sims, indices = query_neighbors(index, embeddings, k)
-    src, dst, weights = build_edges(sims, indices, k, threshold)
-    G = build_nx_graph(len(embeddings), src, dst, weights)
-    _, clusters = run_louvain(G, resolution=resolution)
-    pred_labels = np.zeros(len(embeddings), dtype=np.int32)
-    for cluster_id, nodes in clusters.items():
-        for node in nodes:
-            pred_labels[node] = cluster_id
-    return pred_labels, clusters, G
-
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def load_embeddings(emb_dir, faiss_cfg, prefix, idx=None):
-    """Load text (+image) embeddings for a given prefix (train/phase1/phase2)."""
+    """Load combined (text+image) embeddings and raw image embeddings separately."""
     text_emb = np.load(os.path.join(emb_dir, f"{prefix}_embeddings.npy"))
     ids      = np.load(os.path.join(emb_dir, f"{prefix}_ids.npy"))
     if idx is not None:
         text_emb = text_emb[idx]
         ids      = ids[idx]
 
+    img_emb_raw = None
     if faiss_cfg["use_image"]:
         img_emb = np.load(os.path.join(emb_dir, f"{prefix}_img_embeddings.npy"))
         has_img = np.load(os.path.join(emb_dir, f"{prefix}_img_has_image.npy"))
         if idx is not None:
             img_emb = img_emb[idx]
             has_img = has_img[idx]
+        img_emb_raw = img_emb
         embeddings = combine_embeddings(
             text_emb, img_emb, has_img,
             faiss_cfg["text_weight"], faiss_cfg["image_weight"]
@@ -90,59 +97,125 @@ def load_embeddings(emb_dir, faiss_cfg, prefix, idx=None):
     else:
         embeddings = text_emb.astype(np.float32)
 
-    return embeddings, ids
+    return embeddings, ids, img_emb_raw
+
+
+def load_item_metadata(proc_dir, ids, prefix):
+    """Load prepared item DataFrame aligned to the ids array (row i = node i)."""
+    df = pd.read_pickle(os.path.join(proc_dir, f"{prefix}_prepared.pkl"))
+    return df.set_index("itemId").reindex(ids).reset_index()
+
+
+def load_scorer(config):
+    """Load EdgeScorer if model_path is configured and the file exists."""
+    scorer_cfg = config.get("scorer", {})
+    model_path = scorer_cfg.get("model_path")
+    if not model_path:
+        return None
+    from src.edge_scorer import EdgeScorer
+    if not EdgeScorer.exists(model_path):
+        print(f"  [INFO] No scorer found at {model_path}, running without scorer")
+        return None
+    return EdgeScorer(model_path)
+
+
+# ── Core pipeline ──────────────────────────────────────────────────────────────
+
+def run_pipeline(embeddings, k, threshold, resolution, n_cells=400, n_probe=20,
+                 algorithm="leiden", scorer=None, item_df=None,
+                 img_emb_raw=None, scorer_cfg=None):
+
+    index = build_faiss_index(embeddings, n_cells=n_cells, n_probe=n_probe)
+    sims, indices = query_neighbors(index, embeddings, k)
+
+    if scorer is not None and item_df is not None:
+        from src.edge_scorer import compute_pair_features_batch
+        initial_thr  = (scorer_cfg or {}).get("initial_threshold", 0.6)
+        lgbm_thr     = (scorer_cfg or {}).get("lgbm_threshold", 0.5)
+
+        src, dst, raw_sims = build_edges(sims, indices, k, initial_thr)
+        print(f"  Scorer: {len(src):,} candidates (cosine ≥ {initial_thr}) → LightGBM scoring...")
+        features   = compute_pair_features_batch(src, dst, raw_sims, item_df, img_emb_raw)
+        new_weights = scorer.score(features)
+        mask        = new_weights >= lgbm_thr
+        src, dst, weights = src[mask], dst[mask], new_weights[mask]
+        print(f"  Scorer: {mask.sum():,} edges kept (prob ≥ {lgbm_thr})")
+    else:
+        src, dst, weights = build_edges(sims, indices, k, threshold)
+
+    G = build_nx_graph(len(embeddings), src, dst, weights)
+    _, clusters = run_clustering(G, resolution=resolution, algorithm=algorithm)
+
+    pred_labels = np.zeros(len(embeddings), dtype=np.int32)
+    for cluster_id, nodes in clusters.items():
+        for node in nodes:
+            pred_labels[node] = cluster_id
+    return pred_labels, clusters, G
 
 
 # ── Modes ──────────────────────────────────────────────────────────────────────
 
 def mode_submit(config):
-    emb_dir   = config["paths"]["embeddings"]
-    proc_dir  = config["paths"]["processed_data"]
-    sub_dir   = config["paths"]["submissions"]
-    faiss_cfg = config["faiss"]
+    emb_dir    = config["paths"]["embeddings"]
+    proc_dir   = config["paths"]["processed_data"]
+    sub_dir    = config["paths"]["submissions"]
+    faiss_cfg  = config["faiss"]
+    scorer_cfg = config.get("scorer", {})
     k          = faiss_cfg["k_neighbors"]
     threshold  = faiss_cfg["edge_threshold"]
     resolution = config["clustering"]["resolution"]
+    algorithm  = config["clustering"].get("algorithm", "leiden")
     n_cells    = faiss_cfg["n_cells"]
     n_probe    = faiss_cfg["n_probe"]
     os.makedirs(sub_dir, exist_ok=True)
 
     print("Loading phase2 embeddings...")
-    embeddings, ids = load_embeddings(emb_dir, faiss_cfg, "phase1")  # swap to phase2 after April 10
+    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase2")
     print(f"  {len(ids)} items, dim={embeddings.shape[1]}")
 
-    print(f"\nRunning pipeline (k={k}, threshold={threshold}, resolution={resolution}, n_cells={n_cells}, n_probe={n_probe})...")
+    scorer  = load_scorer(config)
+    item_df = load_item_metadata(proc_dir, ids, "phase2") if scorer else None
+
+    print(f"\nRunning pipeline (k={k}, threshold={threshold}, resolution={resolution}, algorithm={algorithm})...")
     t0 = time.time()
-    _, clusters, G = run_pipeline(embeddings, k, threshold, resolution, n_cells, n_probe)
+    _, clusters, G = run_pipeline(
+        embeddings, k, threshold, resolution, n_cells, n_probe, algorithm,
+        scorer=scorer, item_df=item_df, img_emb_raw=img_emb_raw, scorer_cfg=scorer_cfg,
+    )
     print(f"  Done in {time.time()-t0:.1f}s")
     print_cluster_stats(clusters)
 
-    submission = build_submission(clusters, G, ids)
+    submission = build_submission(clusters, G, ids, algorithm=algorithm)
     out_path = os.path.join(sub_dir, "submission_phase2.csv")
     submission.to_csv(out_path, index=False)
     print(f"\nSaved {out_path} ({len(submission)} rows)")
 
 
 def mode_validate(config, grid=False):
-    emb_dir   = config["paths"]["embeddings"]
-    proc_dir  = config["paths"]["processed_data"]
-    faiss_cfg = config["faiss"]
+    emb_dir    = config["paths"]["embeddings"]
+    proc_dir   = config["paths"]["processed_data"]
+    faiss_cfg  = config["faiss"]
+    scorer_cfg = config.get("scorer", {})
 
     print("Loading train embeddings + labels...")
     train_ids = np.load(os.path.join(emb_dir, "train_ids.npy"))
     train_df  = pd.read_pickle(os.path.join(proc_dir, "train_prepared.pkl"))
-    id_to_label = dict(zip(train_df["itemId"].values, train_df["label"].values))
+    id_to_label      = dict(zip(train_df["itemId"].values, train_df["label"].values))
     true_labels_full = np.array([id_to_label.get(i, -1) for i in train_ids])
 
     rng = np.random.RandomState(SEED)
     idx = np.sort(rng.choice(len(train_ids), size=min(SAMPLE_SIZE, len(train_ids)), replace=False))
     true_labels = true_labels_full[idx]
 
-    embeddings, _ = load_embeddings(emb_dir, faiss_cfg, "train", idx)
+    embeddings, sampled_ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "train", idx)
     print(f"  Sample: {len(idx)} items, {len(set(true_labels))} unique products, dim={embeddings.shape[1]}")
 
-    n_cells = faiss_cfg["n_cells"]
-    n_probe = faiss_cfg["n_probe"]
+    scorer  = load_scorer(config)
+    item_df = load_item_metadata(proc_dir, sampled_ids, "train") if scorer else None
+
+    n_cells   = faiss_cfg["n_cells"]
+    n_probe   = faiss_cfg["n_probe"]
+    algorithm = config["clustering"].get("algorithm", "leiden")
 
     if not grid:
         k          = faiss_cfg["k_neighbors"]
@@ -160,18 +233,21 @@ def mode_validate(config, grid=False):
     results = []
     for cfg in configs:
         k, thr, res = cfg["k"], cfg["threshold"], cfg["resolution"]
-        print(f"\nk={k} threshold={thr} resolution={res}")
+        print(f"\nk={k} threshold={thr} resolution={res} algorithm={algorithm}")
         t0 = time.time()
-        pred_labels, clusters, G = run_pipeline(embeddings, k, thr, res, n_cells, n_probe)
+        pred_labels, clusters, G = run_pipeline(
+            embeddings, k, thr, res, n_cells, n_probe, algorithm,
+            scorer=scorer, item_df=item_df, img_emb_raw=img_emb_raw, scorer_cfg=scorer_cfg,
+        )
         print(f"  Done in {time.time()-t0:.1f}s")
         print_cluster_stats(clusters)
 
-        scores = bcubed_f1(true_labels, pred_labels)
-        print(f"  BCubed F1={scores['bcubed_f1']}  P={scores['bcubed_p']}  R={scores['bcubed_r']}")
+        scores = pairwise_f1(true_labels, pred_labels)
+        print(f"  Pairwise F1={scores['pairwise_f1']}  P={scores['pairwise_p']}  R={scores['pairwise_r']}")
         confidence_calibration(clusters, G, true_labels)
         results.append({**cfg, **scores})
 
-    results_df = pd.DataFrame(results).sort_values("bcubed_f1", ascending=False)
+    results_df = pd.DataFrame(results).sort_values("pairwise_f1", ascending=False)
     if grid:
         print("\nTop 5 configs:")
         print(results_df.head(5).to_string(index=False))

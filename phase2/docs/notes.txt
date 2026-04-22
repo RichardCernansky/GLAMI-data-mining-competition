@@ -2,3 +2,68 @@ RUN
 python scripts/run.py                  # submission_phase2.csv
 python scripts/run.py --validate       # score with current config
 python scripts/run.py --validate --grid  #  grid search all combos
+
+python scripts/train_edge_scorer.py
+
+EMBEDDINGS
+embed everything in order:
+  item_id 692210  →  text_emb[0]   →  FAISS position 0
+  item_id 943360  →  text_emb[1]   →  FAISS position 1
+  item_id 555555  →  text_emb[2]   →  FAISS position 2
+
+FLOW
+Embeddings (multilingual text + images)
+    ↓
+Approximate Nearest Neighbours (FAISS) to find candidates
+    ↓
+Sparse similarity matrix (scipy.sparse)
+    ↓
+Graph clustering (Louvain or Leiden)
+    ↓
+Product groups with confidence
+
+Divide the space into regions and only search nearby regions:
+
+n_cells=400 — how many Voronoi regions to split the embedding space into
+200k items → divided into 400 cells → ~500 items per cell on average
+
+n_probe=20 — how many cells to search when answering a query
+When you ask "find neighbors of item X", FAISS finds X's cell, then searches that cell plus the 19 nearest neighboring cells. It skips the other 380 cells entirely.
+
+IMPROVEMENTS
+Fix pairwise F1 metric - done
+Fix phase2_text_embeddings.npy → phase2_embeddings.npy filename bug in extract_embeddings.py - done
+Add 100-item cluster cap (split oversized clusters before submission) - done
+Switch Louvain → Leiden clustering - done
+Bump n_probe 20 → 50 in config - done
+Enable image embeddings (use_image: true in config) - done
+Add structural edge filtering (using different attributes, price proximity ±30%)
+Train pair-level LightGBM edge scorer using training data labels
+
+
+Purity = the fraction of clusters in that bin where all items share the same true product label.
+Confidence calibration (purity per bin):
+              mean       count
+conf_bin (score bin)                     
+(0.9, 0.95]   0.256211   9500
+(0.95, 1.01]  0.673475   3378
+Higher resolution = the penalty for merging grows, so the algorithm splits more aggressively.
+
+threshold=0.85  →  P=0.005, R=0.80  →  F1=0.010  (too many FPs, giant clusters)
+threshold=0.97  →  P=0.242, R=0.15  →  F1=0.185  (too many FNs, too many singletons)
+
+Loading train embeddings + labels...
+  Sample: 200000 items, 89603 unique products, dim=1280
+
+k=20 threshold=0.965 resolution=1.0 algorithm=louvain
+  Done in 296.0s
+  Clusters:         152609
+  Singletons:       127725
+  Size min/max/mean: 1 / 227 / 1.31
+  Oversized (>100): 6
+  Pairwise F1=0.1785  P=0.1772  R=0.1799
+
+  Confidence calibration (purity per bin):
+                  mean  count
+conf_bin                     
+(0.95, 1.01]  0.676499  24884

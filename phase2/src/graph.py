@@ -34,6 +34,8 @@ def build_faiss_index(embeddings, n_cells=400, n_probe=20, min_points_per_cell=3
     index = faiss.IndexIVFFlat(quantizer, dim, n_cells, faiss.METRIC_INNER_PRODUCT)
     index.train(embeddings.astype(np.float32))
     index.add(embeddings.astype(np.float32))
+
+    # if not enough cells set nprobe to cells otherwise n_probe
     index.nprobe = min(n_probe, n_cells)
     return index
 
@@ -43,6 +45,8 @@ def query_neighbors(index, embeddings, k):
     Query top-k neighbors for every item.
     Returns sims and indices arrays of shape (n, k+1) — first column is self-match.
     """
+    # sims    shape: (200_000, k+1 )   ← k+1 because it includes the item itself (self-match)
+    # indices shape: (200_000, k+1 )
     sims, indices = index.search(embeddings.astype(np.float32), k + 1)
     return sims, indices
 
@@ -54,9 +58,13 @@ def build_edges(sims, indices, k, threshold):
     Returns src, dst, weights as numpy arrays.
     """
     n = len(indices)
+    # sims    shape: (200_000, k+1 )   ← k+1 because it includes the item itself (self-match)
+    # indices shape: (200_000, k+1 )
     src, dst, weights = [], [], []
 
+    # go through all the items 
     for i in range(n):
+        # go through the items matches
         for j_pos in range(1, k + 1):
             j = indices[i, j_pos]
             sim = sims[i, j_pos]
@@ -64,9 +72,14 @@ def build_edges(sims, indices, k, threshold):
                 continue
             if sim < threshold:
                 break  # sorted descending
-            if i < j:
+            
+            # if similarity >= threshold and not duplicated edge
+            if i < j: # get only the single instance of each edge (not duplicate from other side)
+                # register source as i
                 src.append(i)
+                # register rdst as j
                 dst.append(j)
+                # register sim
                 weights.append(sim)
 
     return (
