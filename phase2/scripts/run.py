@@ -169,12 +169,12 @@ def mode_submit(config):
     n_probe    = faiss_cfg["n_probe"]
     os.makedirs(sub_dir, exist_ok=True)
 
-    print("Loading phase2 embeddings...")
-    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase2")
+    print("Loading phase1 embeddings...")
+    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase1")
     print(f"  {len(ids)} items, dim={embeddings.shape[1]}")
 
     scorer  = load_scorer(config)
-    item_df = load_item_metadata(proc_dir, ids, "phase2") if scorer else None
+    item_df = load_item_metadata(proc_dir, ids, "phase1") if scorer else None
 
     print(f"\nRunning pipeline (k={k}, threshold={threshold}, resolution={resolution}, algorithm={algorithm})...")
     t0 = time.time()
@@ -185,10 +185,11 @@ def mode_submit(config):
     print(f"  Done in {time.time()-t0:.1f}s")
     print_cluster_stats(clusters)
 
-    submission = build_submission(clusters, G, ids, algorithm=algorithm)
+    lines = build_submission(clusters, G, ids, algorithm=algorithm)
     out_path = os.path.join(sub_dir, "submission_phase2.csv")
-    submission.to_csv(out_path, index=False)
-    print(f"\nSaved {out_path} ({len(submission)} rows)")
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"\nSaved {out_path} ({len(lines)} groups)")
 
 
 def mode_validate(config, grid=False):

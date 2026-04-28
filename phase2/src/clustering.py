@@ -4,7 +4,6 @@ Switch algorithm via configs/default.yaml: clustering.algorithm: leiden | louvai
 """
 
 import numpy as np
-import pandas as pd
 from collections import defaultdict
 
 
@@ -81,7 +80,7 @@ def compute_confidence(nodes, G):
     return float(np.mean(weights)) if weights else 0.0
 
 
-def split_large_clusters(clusters, G, max_size=100, resolution=2.0, algorithm="leiden", depth=0):
+def split_large_clusters(clusters, G, max_size=150, resolution=2.0, algorithm="leiden", depth=0):
     """
     Recursively re-cluster oversized communities until all fit within max_size.
     Competition hard-rejects any group with > 100 items.
@@ -97,7 +96,7 @@ def split_large_clusters(clusters, G, max_size=100, resolution=2.0, algorithm="l
     for _, nodes in oversized:
         if depth >= 5:
             for i in range(0, len(nodes), max_size):
-                result[new_id] = nodes[i:i + max_size]
+                result[new_id] = nodes[i : i + max_size]
                 new_id += 1
             continue
 
@@ -118,21 +117,17 @@ def split_large_clusters(clusters, G, max_size=100, resolution=2.0, algorithm="l
 
 def build_submission(clusters, G, ids, algorithm="leiden"):
     """
-    Build a DataFrame with group_id, item_id, confidence.
+    Build submission lines: one line per group, comma-separated item_ids.
     ids: array mapping node index -> real item_id
-    Enforces 100-item cluster cap — competition rejects larger groups.
+    Enforces 150-item cluster cap — competition rejects larger groups.
+    Returns list of strings (no header).
     """
     clusters = split_large_clusters(clusters, G, algorithm=algorithm)
-    rows = []
-    for cluster_id, nodes in clusters.items():
-        conf = compute_confidence(nodes, G)
-        for node in nodes:
-            rows.append({
-                "group_id": cluster_id,
-                "item_id": int(ids[node]),
-                "confidence": round(conf, 4),
-            })
-    return pd.DataFrame(rows).sort_values("group_id").reset_index(drop=True)
+    lines = []
+    for nodes in clusters.values():
+        group_ids = [str(int(ids[n])) for n in nodes]
+        lines.append(",".join(group_ids))
+    return lines
 
 
 def print_cluster_stats(clusters):
@@ -140,4 +135,4 @@ def print_cluster_stats(clusters):
     print(f"  Clusters:         {len(clusters)}")
     print(f"  Singletons:       {sum(1 for s in sizes if s == 1)}")
     print(f"  Size min/max/mean: {min(sizes)} / {max(sizes)} / {np.mean(sizes):.2f}")
-    print(f"  Oversized (>100): {sum(1 for s in sizes if s > 100)}")
+    print(f"  Oversized (>150): {sum(1 for s in sizes if s > 150)}")

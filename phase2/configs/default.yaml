@@ -22,7 +22,7 @@ faiss:
   n_probe: 40
 
 clustering:
-  algorithm: leiden  # leiden | louvain  (pip install leidenalg igraph for leiden)
+  algorithm: leiden  # leiden | louvain  
   resolution: 1.0
 
 scorer:
