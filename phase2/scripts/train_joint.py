@@ -269,7 +269,6 @@ torch.save(proj.state_dict(), proj_out)
 
 print(f"\nSaved encoder to:    {encoder_out}/")
 print(f"Saved projection to: {proj_out}")
-print("\nDownload both, then locally:")
 print("  1. Update configs/default.yaml:")
 print('       embedding:')
 print('         model_name: "data/jointly_trained_encoder"')

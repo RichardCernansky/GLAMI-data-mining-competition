@@ -192,7 +192,7 @@ for epoch in range(1, EPOCHS + 1):
 
 # ── Save ───────────────────────────────────────────────────────────────────────
 
-out_path = os.path.join(DATA_DIR, "projection_model.pt")
+out_path = os.path.join(DATA_DIR, "sep_projection_model.pt")
 torch.save(model.state_dict(), out_path)
 print(f"\nSaved to {out_path}")
 print("Download projection_model.pt then run:")

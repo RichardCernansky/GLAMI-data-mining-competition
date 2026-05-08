@@ -80,7 +80,7 @@ def main():
     proc_dir = config["paths"]["processed_data"]
 
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    model_path = os.path.join(script_dir, "data/processed", "projection_model.pt")
+    model_path = os.path.join(script_dir, "data", "projection_model.pt")
     if not os.path.exists(model_path):
         raise FileNotFoundError(
             f"projection_model.pt not found at {model_path}\n"
