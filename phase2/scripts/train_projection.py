@@ -31,7 +31,9 @@ Then locally run:
     python phase2/scripts/apply_projection.py
 """
 
-import os
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import pandas as pd
 import torch
@@ -39,10 +41,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
+from src.utils import load_config
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-DRIVE_DIR     = "/content/drive/MyDrive/CVUT-FIT/ADM/phase2"
+_config  = load_config()
+_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EMB_DIR  = _config["paths"]["embeddings"]
+PROC_DIR = _config["paths"]["processed_data"]
+DATA_DIR = os.path.join(_base_dir, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
 TEXT_DIM      = 768
 IMG_DIM       = 512
 PROJ_DIM      = 128
@@ -64,12 +72,13 @@ print(f"Device: {device}")
 # ── Load data ──────────────────────────────────────────────────────────────────
 
 print("Loading embeddings and metadata...")
-text_emb  = np.load(os.path.join(DRIVE_DIR, "train_ft_embeddings.npy")).astype(np.float32)
-img_emb   = np.load(os.path.join(DRIVE_DIR, "train_img_embeddings.npy")).astype(np.float32)
-has_img   = np.load(os.path.join(DRIVE_DIR, "train_img_has_image.npy")).astype(np.float32)
-train_ids = np.load(os.path.join(DRIVE_DIR, "train_ids.npy"))
+embed_tag = _config.get("embedding", {}).get("embed_tag") or "ft"
+text_emb  = np.load(os.path.join(EMB_DIR, f"train_{embed_tag}_embeddings.npy")).astype(np.float32)
+img_emb   = np.load(os.path.join(EMB_DIR, "train_img_embeddings.npy")).astype(np.float32)
+has_img   = np.load(os.path.join(EMB_DIR, "train_img_has_image.npy")).astype(np.float32)
+train_ids = np.load(os.path.join(EMB_DIR, "train_ids.npy"))
 
-train_df = pd.read_parquet(os.path.join(DRIVE_DIR, "train_prepared.parquet"))
+train_df = pd.read_pickle(os.path.join(PROC_DIR, "train_prepared.pkl"))
 id_to_label = dict(zip(train_df["itemId"].values, train_df["label"].values))
 id_to_price = dict(zip(train_df["itemId"].values, train_df["price_eur"].fillna(0).values))
 labels      = np.array([id_to_label.get(i, -1) for i in train_ids])
@@ -183,7 +192,7 @@ for epoch in range(1, EPOCHS + 1):
 
 # ── Save ───────────────────────────────────────────────────────────────────────
 
-out_path = os.path.join(DRIVE_DIR, "projection_model.pt")
+out_path = os.path.join(DATA_DIR, "projection_model.pt")
 torch.save(model.state_dict(), out_path)
 print(f"\nSaved to {out_path}")
 print("Download projection_model.pt then run:")

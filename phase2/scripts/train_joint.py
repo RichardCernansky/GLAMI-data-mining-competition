@@ -44,8 +44,9 @@ Locally after downloading:
     python phase2/scripts/run.py --validate
 """
 
-import os
-import math
+import sys, os, math
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import pandas as pd
 import torch
@@ -54,11 +55,18 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
+from src.utils import load_config
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-DRIVE_DIR      = "/content/drive/MyDrive/CVUT-FIT/ADM/phase2"
-BASE_MODEL_DIR = os.path.join(DRIVE_DIR, "finetuned-product-encoder")
+_config   = load_config()
+_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EMB_DIR   = _config["paths"]["embeddings"]
+PROC_DIR  = _config["paths"]["processed_data"]
+DATA_DIR  = os.path.join(_base_dir, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+BASE_MODEL_DIR = os.path.join(_base_dir, _config["embedding"]["model_name"])
 IMG_DIM        = 512
 TEXT_DIM       = 768
 PROJ_DIM       = 128
@@ -83,10 +91,10 @@ print(f"Device: {device}")
 # ── Load metadata and image embeddings ─────────────────────────────────────────
 
 print("Loading metadata and image embeddings...")
-train_df    = pd.read_parquet(os.path.join(DRIVE_DIR, "train_prepared.parquet"))
-train_ids   = np.load(os.path.join(DRIVE_DIR, "train_ids.npy"))
-img_emb     = np.load(os.path.join(DRIVE_DIR, "train_img_embeddings.npy")).astype(np.float32)
-has_img     = np.load(os.path.join(DRIVE_DIR, "train_img_has_image.npy")).astype(np.float32)
+train_df    = pd.read_pickle(os.path.join(PROC_DIR, "train_prepared.pkl"))
+train_ids   = np.load(os.path.join(EMB_DIR, "train_ids.npy"))
+img_emb     = np.load(os.path.join(EMB_DIR, "train_img_embeddings.npy")).astype(np.float32)
+has_img     = np.load(os.path.join(EMB_DIR, "train_img_has_image.npy")).astype(np.float32)
 
 id_to_label = dict(zip(train_df["itemId"].values, train_df["label"].values))
 id_to_price = dict(zip(train_df["itemId"].values, train_df["price_eur"].fillna(0).values))
@@ -235,9 +243,9 @@ for epoch in range(1, EPOCHS + 1):
     avg_loss = total_loss / max(n, 1)
     print(f"  Epoch {epoch}  loss={avg_loss:.4f}")
 
-    # Save checkpoint after every epoch to Drive
-    ckpt_dir     = os.path.join(DRIVE_DIR, f"joint_checkpoint_epoch{epoch}")
-    ckpt_proj    = os.path.join(DRIVE_DIR, f"joint_projection_epoch{epoch}.pt")
+    # Save checkpoint after every epoch
+    ckpt_dir  = os.path.join(DATA_DIR, f"joint_checkpoint_epoch{epoch}")
+    ckpt_proj = os.path.join(DATA_DIR, f"joint_projection_epoch{epoch}.pt")
     st_model._first_module().auto_model = encoder.cpu()
     st_model.save(ckpt_dir)
     encoder.to(device)   # move back to GPU for next epoch
@@ -252,8 +260,8 @@ for epoch in range(1, EPOCHS + 1):
 
 # ── Final save ─────────────────────────────────────────────────────────────────
 
-encoder_out = os.path.join(DRIVE_DIR, "jointly_trained_encoder")
-proj_out    = os.path.join(DRIVE_DIR, "joint_projection_model.pt")
+encoder_out = os.path.join(DATA_DIR, "jointly_trained_encoder")
+proj_out    = os.path.join(DATA_DIR, "joint_projection_model.pt")
 
 st_model._first_module().auto_model = encoder.cpu()
 st_model.save(encoder_out)
