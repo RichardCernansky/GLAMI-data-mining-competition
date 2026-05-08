@@ -44,8 +44,11 @@ def main():
     # ── Load data ──────────────────────────────────────────────────────────────
     print("Loading training data...")
     train_df  = pd.read_pickle(os.path.join(proc_dir, "train_prepared.pkl"))
-    train_ids = np.load(os.path.join(emb_dir, "train_ids.npy"))
-    text_emb  = np.load(os.path.join(emb_dir, "train_embeddings.npy")).astype(np.float32)
+    embed_tag  = config.get("embedding", {}).get("embed_tag")
+    emb_name   = f"train_{embed_tag}_embeddings.npy" if embed_tag else "train_embeddings.npy"
+    train_ids  = np.load(os.path.join(emb_dir, "train_ids.npy"))
+    text_emb   = np.load(os.path.join(emb_dir, emb_name)).astype(np.float32)
+    print(f"  Using embeddings: {emb_name}")
 
     rng = np.random.RandomState(SEED)
     idx = np.sort(rng.choice(len(train_ids), size=min(SAMPLE_SIZE, len(train_ids)), replace=False))
@@ -131,7 +134,7 @@ def main():
 
     print("\nThreshold sweep on validation set:")
     best_f1, best_thr = 0.0, 0.5
-    for thr in np.arange(0.9, 0.99, 0.01):
+    for thr in np.arange(0.8, 0.99, 0.01):
         preds = (proba >= thr).astype(int)
         f1_t  = f1_score(y_val, preds)
         prec  = precision_score(y_val, preds, zero_division=0)

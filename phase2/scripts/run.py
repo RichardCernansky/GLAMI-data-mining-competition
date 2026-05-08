@@ -74,9 +74,10 @@ def confidence_calibration(clusters, G, true_labels):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def load_embeddings(emb_dir, faiss_cfg, prefix, idx=None):
+def load_embeddings(emb_dir, faiss_cfg, prefix, idx=None, embed_tag=None):
     """Load combined (text+image) embeddings and raw image embeddings separately."""
-    text_emb = np.load(os.path.join(emb_dir, f"{prefix}_embeddings.npy"))
+    emb_name = f"{prefix}_{embed_tag}_embeddings.npy" if embed_tag else f"{prefix}_embeddings.npy"
+    text_emb = np.load(os.path.join(emb_dir, emb_name))
     ids      = np.load(os.path.join(emb_dir, f"{prefix}_ids.npy"))
     if idx is not None:
         text_emb = text_emb[idx]
@@ -169,8 +170,9 @@ def mode_submit(config):
     n_probe    = faiss_cfg["n_probe"]
     os.makedirs(sub_dir, exist_ok=True)
 
-    print("Loading phase1 embeddings...")
-    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase1")
+    embed_tag = config.get("embedding", {}).get("embed_tag")
+    print(f"Loading phase1 embeddings (tag={embed_tag})...")
+    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase1", embed_tag=embed_tag)
     print(f"  {len(ids)} items, dim={embeddings.shape[1]}")
 
     scorer  = load_scorer(config)
@@ -208,7 +210,8 @@ def mode_validate(config, grid=False):
     idx = np.sort(rng.choice(len(train_ids), size=min(SAMPLE_SIZE, len(train_ids)), replace=False))
     true_labels = true_labels_full[idx]
 
-    embeddings, sampled_ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "train", idx)
+    embed_tag = config.get("embedding", {}).get("embed_tag")
+    embeddings, sampled_ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "train", idx, embed_tag=embed_tag)
     print(f"  Sample: {len(idx)} items, {len(set(true_labels))} unique products, dim={embeddings.shape[1]}")
 
     scorer  = load_scorer(config)
