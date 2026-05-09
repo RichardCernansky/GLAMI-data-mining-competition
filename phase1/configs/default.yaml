@@ -4,7 +4,7 @@
 paths:
   raw_data: "data/raw"
   processed_data: "data/processed"
-  embeddings: "data/processed/embeddings_miniLM"
+  embeddings: "data/processed/embeddings"
   submissions: "data/submissions"
   images: "data/raw/fit_dataset_images"
 

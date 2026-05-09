@@ -1,0 +1,5 @@
+what do they mean by clear comparison with one baseline? what do they mean by baseline?
+how do they mean the class imbalance ?
+what do they mean by confidence estimation?
+ablation of the phase 2 is kinda weird
++ add 2 figures - architectures
