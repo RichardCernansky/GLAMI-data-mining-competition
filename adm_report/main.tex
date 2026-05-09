@@ -9,6 +9,7 @@
 \usepackage{hyperref}
 \usepackage{titlesec}
 
+
 % Title formatting
 \titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
@@ -22,7 +23,7 @@
 \author{
     \textbf{Richard Čerňanský} \\
     \textit{NI-ADM Competition 2026} \\
-    \textit{FIT CVUT}\\
+    \textit{FIT CTU}\\
     9th of May 2026, Prague, Czechia
 }
 
@@ -34,9 +35,9 @@ item appears with different titles, prices, and images. Our system combines mult
 CLIP image embeddings [6], and structured metadata through a two-phase pipeline. Phase 1 classifies predefined groups 
 using LightGBM [7] on aggregated pairwise features (F1 = 0.9745). Phase 2 performs open-world product 
 clustering via FAISS [9] approximate nearest neighbors, a trained pair-level edge scorer, contrastive fine-tuning, and Leiden [4] 
-graph clustering, achieving pairwise F1 = 0.9005 on items\_phase1. Inspired by the fashionID architecture [2], we train a multimodal 
-projection that fuses text, image, and price signals into a shared 128-dimensional metric space. 
-!!An ablation study confirms that each modality contributes and that the multimodal projection improves pairwise F1 by +0.10 over the text-only baseline.
+graph clustering, achieving pairwise F1 = 0.9005 on items\_phase1. Inspired by the fashionID architecture [2], we train a multimodal
+projection that fuses text, image, and price signals into a shared 128-dimensional metric space.
+An ablation study confirms that each component contributes independently, with the full pipeline improving pairwise F1 by +0.09 over the base embedding baseline.
 \end{abstract}
 
 \vspace{1em}
@@ -51,13 +52,16 @@ given $\sim$200k unlabeled items, construct disjoint product groups (evaluated b
 problem difficult:
 (a) \textbf{multimodality} - text, images, price, and categorical metadata must be fused effectively;
 (b) \textbf{cross-geo variation} - $\sim$40\% of product labels span 2+ markets with titles in completely different languages;
-(c) \textbf{class imbalance} - !!Phase 1 uses an 80/20 negative/positive split, and in Phase 2 the vast majority of item pairs 
-are non-matches, making brute-force comparison of $\sim$20 billion pairs infeasible.
+(c) \textbf{class imbalance} — in Phase 1, the 80/20 negative/positive group 
+ratio requires careful threshold calibration; in Phase 2, the pair-level 
+imbalance is extreme ($\sim$0.002\% of all pairs are true matches), making 
+brute-force scoring of $\sim$20 billion pairs both computationally infeasible 
+and statistically degenerate. Candidate blocking (FAISS) and class-weighted 
+training are essential.
 
 \section{Related Work}
 \textbf{Entity matching.} Christophides et al. [10] survey end-to-end entity resolution for big data, identifying blocking,
- matching, and clustering as the three core stages. Mudgal et al. [8] explore deep learning architectures for entity matching 
- and show that hybrid models combining attribute-level and structure-level signals outperform single-signal approaches. 
+ matching, and clustering as the three core stages. 
  Peeters et al. [1] demonstrate that LLMs achieve very high precision but at costs prohibitive for millions of items. 
  Li et al. [11] show that pre-trained language models fine-tuned as binary classifiers on concatenated text pairs achieve 
  state-of-the-art on textual entity matching benchmarks. Peeters and Bizer [12] extend this to contrastive learning, 
@@ -95,12 +99,23 @@ EDA confirmed 91.9\% of product labels share identical departmentIds across item
 \textbf{Text embeddings.} Each item's title and truncated description (500 chars) are 
 encoded using \textit{paraphrase-multilingual-mpnet-base-v2} [5] (768-dim, 50+ languages), L2-normalized.
 
-\textbf{Image embeddings.} Product images are encoded using CLIP ViT-B/32 [6] (512-dim), with 100\% coverage. 
+\textbf{Image embeddings.} Product images are encoded using CLIP ViT-B/32 [6] (512-dim), with coverage varying by market; items without images are masked out in the projection via a has\_image flag. 
 Following [2], who find that CLIP provides a stronger visual baseline than DINOv2, we use CLIP as our image encoder throughout.
 
-\textbf{Contrastive fine-tuning.} We fine-tuned the text encoder with MultipleNegativesRankingLoss [12] on $\sim$450k positive pairs (same-label items) for 3 epochs (batch size 64, warmup ratio 0.1), shifting embeddings from generic semantic similarity toward product identity.
+\textbf{Contrastive fine-tuning.} We fine-tuned the text encoder with MultipleNegativesRankingLoss [12] on $\sim$450k positive pairs (same-label items) for 3 epochs (batch size 64, warmup ratio 0.1), shifting embeddings from generic semantic similarity toward product identity. For each anchor-positive pair $(a_i, p_i)$, all other positives in the batch serve as in-batch negatives:
+\begin{equation}
+\mathcal{L}_{\text{MNR}} = -\frac{1}{N}\sum_{i=1}^{N} \log \frac{\exp\!\left(\cos(a_i,\, p_i)\right)}{\sum_{j=1}^{N} \exp\!\left(\cos(a_i,\, p_j)\right)}
+\end{equation}
 
 \subsection{Phase 1: Group Classification}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\columnwidth]{phase1_arch.png}
+    \caption{Phase 1 pipeline: pairwise feature extraction and LightGBM group classification.}
+    \label{fig:phase1}
+\end{figure}
+
 For each group of 5 items, we compute all 10 pairwise comparisons, extracting per pair: text cosine similarity, 
 image cosine similarity, department Jaccard, color tag Jaccard, EUR price ratio (min/max), and same-geo flag. 
 These are aggregated into several group-level features (max, mean, min, 2nd-highest for embedding similarities; 
@@ -109,6 +124,14 @@ scale\_pos\_weight=4.0 for the 80/20 class imbalance) is trained with 5-fold str
 synthetic validation groups.
 
 \subsection{Phase 2: Product Clustering}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\columnwidth]{phase2_arch.png}
+    \caption{Phase 2 pipeline: FAISS candidate generation, LightGBM edge scoring, and Leiden graph clustering.}
+    \label{fig:phase2}
+\end{figure}
+
 Phase 2 requires clustering $\sim$200k items into product groups, evaluated by pairwise F1. Our pipeline follows the 
 two-stage approach of [2] (encoding + retrieval) but extends it with learned edge scoring and graph-based clustering:
 
@@ -120,8 +143,13 @@ two-stage approach of [2] (encoding + retrieval) but extends it with learned edg
 
 \textbf{(4) Post-processing.} Clusters exceeding 150 items are recursively re-clustered at higher resolution.
 
+\textbf{(5) Confidence estimation.} Each cluster is assigned a confidence score equal to the mean LightGBM match probability across all internal edges. Empirically, clusters with mean edge weight $> 0.95$ achieve $\sim$95\% purity, while lower-confidence bins (0.85--0.95) drop to 67--71\%, reflecting transitive false positives introduced by Leiden.
+
 \subsection{Multimodal Projection}
-Inspired by fashionID [2], we train a projection head that fuses all modalities into a 128-dim metric space. The architecture: text\_proj (768 $\rightarrow$ 128, ReLU), img\_proj (512 $\rightarrow$ 128, ReLU), numeric (log-normalized price, has\_image flag, placeholder), fusion (259 $\rightarrow$ 128), L2-normalized. Unlike [2] who use a single linear layer with 192-dim output, we use ReLU activations and a smaller output dimension. Training uses InfoNCE loss with temperature 0.07 and batch sampling that maximizes positive pairs per batch (256 groups, 4 items per group). We also experimented with joint training of the text encoder and projection head simultaneously, where the encoder learns representations that complement the frozen CLIP image signal. !!For confidence estimation, we compute mean edge weight (LightGBM match probability) within each cluster.
+Inspired by fashionID [2], we train a projection head that fuses all modalities into a 128-dim metric space. The architecture: text\_proj (768 $\rightarrow$ 128, ReLU), img\_proj (512 $\rightarrow$ 128, ReLU), numeric (log-normalized price, has\_image flag, zero-padded third dimension), fusion (259 $\rightarrow$ 128), L2-normalized. Unlike [2] who use a single linear layer with 192-dim output, we use ReLU activations and a smaller output dimension. Training uses InfoNCE loss with temperature $\tau = 0.07$ and batch sampling that maximizes positive pairs per batch (256 groups, 4 items per group). Let $\mathbf{z}_i$ denote the L2-normalized output embedding and $y_i$ the product label; the loss averages over all anchors $\mathcal{A}$ that have at least one positive in the batch:
+\begin{equation}
+\mathcal{L}_{\text{InfoNCE}} = -\frac{1}{|\mathcal{A}|}\sum_{i \in \mathcal{A}} \log \frac{\displaystyle\sum_{\substack{j \neq i,\; y_j = y_i}} \exp\!\left(\mathbf{z}_i^\top \mathbf{z}_j\, /\, \tau\right)}{\displaystyle\sum_{k \neq i} \exp\!\left(\mathbf{z}_i^\top \mathbf{z}_k\, /\, \tau\right)}
+\end{equation} We also experimented with joint training of the text encoder and projection head simultaneously, where the encoder learns representations that complement the frozen CLIP image signal.
 
 \section{Baselines}
 We compare our method against baselines for both phases. \textbf{For Phase 1}:
@@ -133,8 +161,10 @@ ignores price, image, and metadata.
 image embeddings (F1 = 0.914). Adding CLIP image features yields F1 = 0.964 (our full Phase 1 model).
 
 \textbf{For Phase 2}:
-\textbf{B3 (Text cosine + threshold):} FAISS with raw cosine threshold on paraphrase-multilingual-mpnet 
-embeddings, Leiden clustering (pairwise F1 $\sim$ 0.81). This is the straightforward application of [2]'s retrieval approach without any fine-tuning or structured features.
+\textbf{B3 (Base embeddings + LightGBM scorer):} FAISS with a LightGBM edge scorer on
+paraphrase-multilingual-mpnet base embeddings, Leiden clustering (pairwise F1 = 0.810).
+The LightGBM scorer and graph clustering pipeline are fixed across all Phase 2 rows;
+subsequent improvements come exclusively from better embeddings.
 
 \section{Experiments}
 
@@ -165,11 +195,11 @@ from the competition server. P/R unavailable for server-evaluated submissions.}
 1 & B1: Text emb. threshold (0.75) & 0.900 & 0.910 & 0.889 \\
 1 & B2: LightGBM (text + struct.) & 0.914 & 0.945 & 0.886 \\
 1 & Full: LightGBM (text+img+struct.) & 0.964 & 0.989 & 0.941 \\
-1 & Leaderboard (submitted) & 0.974 & - & - \\
+1 & Leaderboard (submitted) & 0.9745 & - & - \\
 \midrule
-2 & B3: Text cosine + Leiden & 0.810 & - & - \\
-2 & + Contrastive FT + edge scorer & 0.883 & - & - \\
-2 & + Multimodal projection (full) & 0.901 & - & - \\
+2 & B3: Base emb. + LightGBM scorer & 0.810 & - & - \\
+2 & Contrastive FT text emb. + LightGBM scorer & 0.883 & - & - \\
+2 & Multimodal projection + LightGBM scorer & 0.901 & - & - \\
 2 & Top of leaderboard at the time of reporting & 0.942 & - & - \\
 \bottomrule
 \end{tabular}
@@ -180,9 +210,9 @@ from the competition server. P/R unavailable for server-evaluated submissions.}
 
 \subsection{Leaderboard Performance}
 Phase 1 leaderboard F1 = \textbf{0.974}. Phase 2 pairwise F1 = \textbf{0.9005}, with a gap of $\sim$0.04 to the top score of 
-0.9424 in the time of reporting. The Phase 2 progression from baseline (0.81) to final submission (0.9005) demonstrates the 
-cumulative effect of contrastive fine-tuning (+0.07), the LightGBM edge scorer (+0.01 on top of fine-tuning), and the multimodal 
-projection (+0.02).
+0.9424 in the time of reporting. The Phase 2 progression from baseline (0.810) to final submission (0.9005) demonstrates the
+cumulative effect of contrastive fine-tuning (+0.073, with the LightGBM scorer and Leiden pipeline held fixed)
+and the multimodal projection (+0.018).
 
 \subsection{Ablation Study}
 \textbf{Phase 1 ablation.} Starting from text-only embedding threshold (F1 = 0.900): adding structured features (price, dept, color) 
@@ -191,7 +221,7 @@ img\_max (1041 splits), text x image interaction (745), emb\_max (592), price\_m
 importance in Phase 1 due to low variance (Jaccard mean = 0.997), but department remains valuable as a feature in the Phase 2 
 edge scorer.
 
-\textbf{Phase 2 ablation.} The baseline text encoder with cosine thresholding yields pairwise F1 = 0.81. Contrastive fine-tuning (MNR loss, 450k pairs) shifts the embedding space toward product identity, bringing F1 to $\sim$0.87. Adding the LightGBM edge scorer (6 features replacing raw cosine as edge weight) improves to 0.8828. The multimodal projection, which fuses text, image, and price into a 128-dim space using InfoNCE loss, brings the final score to 0.9005. Each component provides a meaningful gain, confirming the value of both domain-specific fine-tuning and multimodal fusion.
+\textbf{Phase 2 ablation.} The LightGBM edge scorer (which includes img\_sim as a feature) and Leiden clustering pipeline are held fixed across all configurations; only the input embeddings change. The base text embeddings yield pairwise F1 = 0.810. Replacing them with contrastively fine-tuned embeddings (MNR loss, $\sim$450k positive pairs, 3 epochs) improves F1 to 0.8828 (+0.073), demonstrating that domain-specific fine-tuning toward product identity is the single largest gain. Replacing text-only embeddings with the multimodal projection (fusing text, image, and price into 128-dim via InfoNCE) yields F1 = 0.9005 (+0.018): in the previous step image information entered only as a secondary scorer feature; the projection promotes it into the primary retrieval space, allowing FAISS to surface better candidates.
 
 \subsection{Strengths and Weaknesses}
 \textbf{Strengths.} The pipeline successfully handles cross-lingual matching (40\% of labels span 2+ geos). Currency 
@@ -199,22 +229,21 @@ normalization turns price into a strong discriminator. The modular architecture 
 The two-stage scoring (FAISS + LightGBM) overcomes the limitation of [2]'s single-threshold approach by incorporating structured 
 metadata.
 
-\textbf{Weaknesses.} The gap to the leaderboard top (0.04 pairwise F1) suggests room for improvement. The two-stage training (encoder then projection) is suboptimal: the text encoder never sees the image signal during fine-tuning. Confidence calibration shows only $\sim$67\% purity for clusters with mean edge weight $> 0.95$. We use smaller pre-trained models (ViT-B/32) than [2]'s ViT-bigG-14, which limits visual feature quality.
+\textbf{Weaknesses.} The gap to the leaderboard top (0.04 pairwise F1) suggests room for improvement. The two-stage training (encoder then projection) is suboptimal: the text encoder never sees the image signal during fine-tuning. Confidence calibration shows that high-confidence clusters (mean edge weight $> 0.95$, 38k clusters) achieve $\sim$95\% purity, but lower-confidence bins drop to 67--71\%, indicating that weak transitive edges remain a source of false positives. We use smaller pre-trained models (ViT-B/32) than [2]'s ViT-bigG-14, which limits visual feature quality.
 
 \section{Conclusion}
 We presented a multimodal product matching system that combines text, image, price, and categorical metadata for cross-geo fashion product identification. Key findings:
 (1) image embeddings provide the largest single-component improvement in Phase 1 (+0.050 F1);
 (2) contrastive fine-tuning is the largest single improvement in Phase 2 (+0.07 pairwise F1);
 (3) the multimodal projection inspired by fashionID [2] yields a further +0.02 by fusing all signals;
-(4) a LightGBM edge scorer incorporating structured features outperforms raw cosine thresholding by enabling lower candidate thresholds while maintaining precision;
+(4) a LightGBM edge scorer incorporating structured features (text, image, price, department, color, geo) enables lower FAISS candidate thresholds while maintaining precision, outperforming a raw cosine threshold;
 (5) Leiden clustering outperforms Louvain by producing tighter, internally connected communities.
 
-\textbf{Future work.} (1) \textbf{Joint encoder + projection training:} currently the pipeline trains in two stages (fine-tune encoder, then freeze and train projection). Joint end-to-end training with InfoNCE would let the encoder learn representations that complement the image signal directly, potentially gaining 1-3 pairwise F1 points. (2) Scaling to larger pre-trained encoders (ViT-L or ViT-bigG as in [2]) could improve visual feature quality. (3) Brand name extraction from titles as an exact-match feature. (4) !! Iterative cluster refinement via within-cluster pairwise verification.
+\textbf{Future work.} (1) \textbf{Joint encoder + projection training:} currently the pipeline trains in two stages (fine-tune encoder, then freeze and train projection). Joint end-to-end training with InfoNCE would let the encoder learn representations that complement the image signal directly, potentially gaining 1-3 pairwise F1 points. (2) Scaling to larger pre-trained encoders (ViT-L or ViT-bigG as in [2]) could improve visual feature quality. (3) Brand name extraction from titles as an exact-match feature. 
 
 \begin{thebibliography}{00}
 \bibitem{1} R. Peeters et al., ``Entity Matching using Large Language Models,'' arXiv:2310.11244, 2023.
 \bibitem{2} S. Toth et al., ``End-to-end multi-modal product matching in fashion e-commerce,'' arXiv:2403.11593, 2024.
-\bibitem{3} V. Vancura et al., ``Scalable Linear Shallow Autoencoder for Collaborative Filtering,'' RecSys 2022.
 \bibitem{4} V.A. Traag et al., ``From Louvain to Leiden: guaranteeing well-connected communities,'' Sci. Reports 9(1):5233, 2019.
 \bibitem{5} N. Reimers and I. Gurevych, ``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,'' EMNLP 2019.
 \bibitem{6} A. Radford et al., ``Learning Transferable Visual Models From Natural Language Supervision,'' ICML 2021.

@@ -1,10 +1,10 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.9)  9 MAY 2026 20:30
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.9)  9 MAY 2026 23:34
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**/Users/richard/Desktop/ADM/adm_report/main.tex
-(/Users/richard/Desktop/ADM/adm_report/main.tex
+**/Users/richard/Desktop/ADM/competition26/adm_report/main.tex
+(/Users/richard/Desktop/ADM/competition26/adm_report/main.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
 (/usr/local/texlive/2026/texmf-dist/tex/latex/base/article.cls
@@ -289,24 +289,24 @@ File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 ) (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -361,79 +361,83 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 48
  (/usr/local/texlive/2026/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Live
 ))
-Package hyperref Info: Link coloring OFF on input line 18.
+Package hyperref Info: Link coloring OFF on input line 19.
  (./main.out) (./main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 30.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 31.
  (/usr/local/texlive/2026/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 30.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 31.
  (/usr/local/texlive/2026/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1{/usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
 
 
 ]
-Underfull \hbox (badness 2856) in paragraph at lines 95--97
+Underfull \hbox (badness 2856) in paragraph at lines 99--101
 \OT1/cmr/m/it/10 multilingual-mpnet-base-v2 \OT1/cmr/m/n/10 [5] (768-dim, 50+ lan-
  []
 
-
-Underfull \hbox (badness 1622) in paragraph at lines 117--118
+<phase1_arch.png, id=87, 771.88374pt x 460.72125pt>
+File: phase1_arch.png Graphic file (type png)
+<use phase1_arch.png>
+Package pdftex.def Info: phase1_arch.png  used on input line 114.
+(pdftex.def)             Requested size: 239.55144pt x 142.9838pt.
+<phase2_arch.png, id=89, 722.7pt x 590.205pt>
+File: phase2_arch.png Graphic file (type png)
+<use phase2_arch.png>
+Package pdftex.def Info: phase2_arch.png  used on input line 130.
+(pdftex.def)             Requested size: 239.55144pt x 195.6328pt.
+[2 <./phase1_arch.png> <./phase2_arch.png>]
+Underfull \hbox (badness 1622) in paragraph at lines 140--141
 \OT1/cmr/m/n/10 tures: text[]sim, img[]sim, price[]sim, dept[]jaccard,
  []
 
 
-Underfull \hbox (badness 1292) in paragraph at lines 124--125
+Underfull \hbox (badness 1292) in paragraph at lines 149--150
 \OT1/cmr/m/n/10 The ar-chi-tec-ture: text[]proj (768 $\OMS/cmsy/m/n/10 !$ \OT1/cmr/m/n/10 128, ReLU),
  []
 
 
-Underfull \hbox (badness 5533) in paragraph at lines 135--138
-\OT1/cmr/m/n/10 multilingual-mpnet em-bed-dings, Lei-den clus-ter-ing
+Underfull \hbox (badness 1142) in paragraph at lines 163--168
+\OT1/cmr/m/n/10 on paraphrase-multilingual-mpnet base em-bed-dings,
  []
 
-[2]
-LaTeX Font Info:    Trying to load font information for OMS+cmr on input line 148.
- (/usr/local/texlive/2026/texmf-dist/tex/latex/base/omscmr.fd
+LaTeX Font Info:    Trying to load font information for OMS+cmr on input line 178.
+(/usr/local/texlive/2026/texmf-dist/tex/latex/base/omscmr.fd
 File: omscmr.fd 2024/11/19 v2.5n Standard LaTeX font definitions
 )
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 148.
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 178.
  [3]
-Underfull \hbox (badness 10000) in paragraph at lines 216--217
+Underfull \hbox (badness 10000) in paragraph at lines 246--247
 []\OT1/cmr/m/n/10 S. Toth et al., ``End-to-end multi-modal
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 216--217
+Underfull \hbox (badness 10000) in paragraph at lines 246--247
 \OT1/cmr/m/n/10 prod-uct match-ing in fash-ion e-commerce,''
  []
 
 
-Underfull \hbox (badness 1102) in paragraph at lines 217--218
-\OT1/cmr/m/n/10 toen-coder for Col-lab-o-ra-tive Fil-ter-ing,'' Rec-Sys
- []
-
-
-Underfull \hbox (badness 5771) in paragraph at lines 219--220
+Underfull \hbox (badness 5771) in paragraph at lines 248--249
 \OT1/cmr/m/n/10 Sen-tence Em-bed-dings us-ing Siamese BERT-
  []
 
 
-Underfull \hbox (badness 2707) in paragraph at lines 227--228
+Underfull \hbox (badness 2707) in paragraph at lines 256--257
 []\OT1/cmr/m/n/10 M. Oquab et al., ``DI-NOv2: Learn-ing Ro-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 227--228
+Underfull \hbox (badness 10000) in paragraph at lines 256--257
 \OT1/cmr/m/n/10 bust Vi-sual Fea-tures with-out Su-per-vi-sion,''
  []
 
-[4
+[4] [5
 
 ] (./main.aux)
  ***********
@@ -444,18 +448,18 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: 048DE4ECD86D1BC8D50D246868AB8C40;2523.
  ) 
 Here is how much of TeX's memory you used:
- 11169 strings out of 467525
- 167589 string characters out of 5418983
- 611664 words of memory out of 5000000
- 39906 multiletter control sequences out of 15000+600000
- 636277 words of font info for 73 fonts, out of 8000000 for 9000
+ 11196 strings out of 467525
+ 168148 string characters out of 5418983
+ 611859 words of memory out of 5000000
+ 39927 multiletter control sequences out of 15000+600000
+ 636896 words of font info for 75 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,9n,79p,936b,445s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb>
-Output written on main.pdf (4 pages, 136979 bytes).
+ 75i,9n,79p,912b,552s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb>
+Output written on main.pdf (5 pages, 269690 bytes).
 PDF statistics:
- 163 PDF objects out of 1000 (max. 8388607)
- 139 compressed objects within 2 object streams
- 38 named destinations out of 1000 (max. 500000)
- 145 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 200 PDF objects out of 1000 (max. 8388607)
+ 161 compressed objects within 2 object streams
+ 42 named destinations out of 1000 (max. 500000)
+ 155 words of extra memory for PDF output out of 10000 (max. 10000000)
 
