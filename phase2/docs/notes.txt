@@ -1,9 +1,27 @@
-RUN
-python scripts/run.py                  # submission_phase2.csv
-python scripts/run.py --validate       # score with current config
-python scripts/run.py --validate --grid  #  grid search all combos
+PIPELINE RUN
 
+# 1. Prepare phase2 raw items
+python scripts/prepare_data.py
+
+# 2. Extract embeddings (phase1 + phase2 + train)
+python scripts/extract_embeddings.py
+
+# 3. Train projection on train data
+python scripts/train_projection.py
+
+# 4. Apply projection to phase1 + phase2 + train
+python scripts/apply_projection.py
+# → set embed_tag: "proj" in config
+
+# 5. Retrain edge scorer
 python scripts/train_edge_scorer.py
+
+# 6. Validate
+python scripts/run.py --validate
+
+# 7. Submit both
+python scripts/run.py                    # phase1 → submission_phase1.csv
+python scripts/run.py --prefix phase2   # phase2 → submission_phase2.csv
 
 EMBEDDINGS
 embed everything in order:
