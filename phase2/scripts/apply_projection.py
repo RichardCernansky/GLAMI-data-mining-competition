@@ -80,7 +80,7 @@ def main():
     proc_dir = config["paths"]["processed_data"]
 
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    model_path = os.path.join(script_dir, "data", "projection_model.pt")
+    model_path = os.path.join(script_dir, "data", "sep_projection_model.pt")
     if not os.path.exists(model_path):
         raise FileNotFoundError(
             f"projection_model.pt not found at {model_path}\n"
@@ -89,7 +89,14 @@ def main():
 
     print(f"Loading projection model...")
     model = FashionIDProjection()
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    checkpoint = torch.load(model_path, map_location="cpu")
+
+    # Extract the actual weights from the 'proj' key
+    if 'proj' in checkpoint:
+        model.load_state_dict(checkpoint['proj'])
+    else:
+        # Fallback in case you ever use a file that is just the state_dict
+        model.load_state_dict(checkpoint)
     print(f"  Loaded from {model_path}")
 
     for prefix, pkl_name in [("phase1", "phase1_prepared.pkl"), ("train", "train_prepared.pkl")]:

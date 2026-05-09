@@ -14,10 +14,6 @@ Architecture:
 
 Loss: InfoNCE with batch sampling that maximizes positive pairs.
 
-Setup on Colab (run in a cell before this script):
-    from google.colab import drive
-    drive.mount('/content/drive')
-    !pip install sentence-transformers torch numpy pandas tqdm
 
 Files needed in MyDrive/adm/phase2/:
     train_prepared.parquet         (convert locally: train_prepared.pkl -> parquet)
@@ -66,7 +62,8 @@ PROC_DIR  = _config["paths"]["processed_data"]
 DATA_DIR  = os.path.join(_base_dir, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-BASE_MODEL_DIR = os.path.join(_base_dir, _config["embedding"]["model_name"])
+# BASE_MODEL_DIR = os.path.join(_base_dir, _config["embedding"]["model_name"])
+BASE_MODEL_DIR = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 IMG_DIM        = 512
 TEXT_DIM       = 768
 PROJ_DIM       = 128
@@ -76,7 +73,7 @@ OUT_DIM        = 128
 ITEMS_PER_GRP  = 2      # items per product group per batch
 BATCH_GROUPS   = 64     # groups per batch → ~128 items (encoder is memory-heavy)
 ENCODER_BATCH  = 256    # sentence-transformer encoding batch size
-EPOCHS         = 3
+EPOCHS         = 7
 LR_ENCODER     = 2e-5   # small LR for encoder — don't destroy pretrained weights
 LR_PROJ        = 3e-4   # larger LR for projection layers
 TEMPERATURE    = 0.07
@@ -273,8 +270,8 @@ print("  1. Update configs/default.yaml:")
 print('       embedding:')
 print('         model_name: "data/jointly_trained_encoder"')
 print('         embed_tag: "joint"')
-print("  2. python phase2/scripts/extract_embeddings.py --text-only")
+print("  2. python ./scripts/extract_embeddings.py --text-only")
 print("  3. In apply_projection.py set MODEL_PATH = 'data/joint_projection_model.pt'")
-print("  4. python phase2/scripts/apply_projection.py")
-print("  5. python phase2/scripts/train_edge_scorer.py")
-print("  6. python phase2/scripts/run.py --validate")
+print("  4. python ./scripts/apply_projection.py")
+print("  5. python ./scripts/train_edge_scorer.py")
+print("  6. python ./scripts/run.py --validate")

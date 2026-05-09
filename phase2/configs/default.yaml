@@ -7,12 +7,10 @@ paths:
 
 
 embedding:
-  # model_name: "paraphrase-multilingual-mpnet-base-v2"  embed_tag: null
-  # model_name: "data/finetuned-product-encoder"         embed_tag: "ft"
-  # model_name: "intfloat/multilingual-e5-large"         embed_tag: "e5"
+  # model_name: "paraphrase-multilingual-mpnet-base-v2"  #embed_tag: null
+  # model_name: "intfloat/multilingual-e5-large"         #embed_tag: "e5"
   model_name: "data/finetuned-product-encoder"
-  # embed_tag: "ft"   # tag appended to filenames: phase1_ft_embeddings.npy, train_ft_embeddings.npy
-  embed_tag: "proj"
+  embed_tag: "proj"   # tag appended to filenames: phase1_ft_embeddings.npy, train_ft_embeddings.npy
   batch_size: 32 
   normalize: true
   max_description_length: 500
@@ -33,7 +31,7 @@ clustering:
 scorer:
   model_path: "../phase1/data/processed/edge_scorer.joblib"          # set to path of edge_scorer.joblib after training
   initial_threshold: 0.6      # loose FAISS pre-filter when scorer is active (more candidates)
-  lgbm_threshold: 0.90         # LightGBM probability threshold to keep an edge
+  lgbm_threshold: 0.88        # LightGBM probability threshold to keep an edge
 
 currency:
   sk: 1.0
