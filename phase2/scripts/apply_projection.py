@@ -4,14 +4,11 @@ Apply trained projection model to generate multimodal embeddings locally.
 Runs on CPU in seconds — the projection layers are tiny linear layers,
 no encoder inference needed.
 
-Place projection_model.pt at phase2/data/projection_model.pt before running.
-
 Usage:
     python phase2/scripts/apply_projection.py
 
-Output:
-    phase1_proj_embeddings.npy
-    train_proj_embeddings.npy
+Source embeddings: uses embed_tag from configs/default.yaml (e.g. "ft" → phase1_ft_embeddings.npy)
+Output:            phase1_proj_embeddings.npy, phase2_proj_embeddings.npy, train_proj_embeddings.npy
 
 Then update configs/default.yaml:
     embedding:
@@ -22,6 +19,7 @@ Then update configs/default.yaml:
 Then run:
     python phase2/scripts/train_edge_scorer.py
     python phase2/scripts/run.py --validate
+    python phase2/scripts/run.py --prefix phase2
 """
 
 import sys, os
@@ -75,9 +73,10 @@ def apply_projection(model, text_emb, img_emb, has_img, price_norm, batch_size=4
 
 
 def main():
-    config   = load_config()
-    emb_dir  = config["paths"]["embeddings"]
-    proc_dir = config["paths"]["processed_data"]
+    config    = load_config()
+    emb_dir   = config["paths"]["embeddings"]
+    proc_dir  = config["paths"]["processed_data"]
+    embed_tag = config.get("embedding", {}).get("embed_tag") or "ft"
 
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = os.path.join(script_dir, "data", "sep_projection_model.pt")
@@ -99,7 +98,7 @@ def main():
         model.load_state_dict(checkpoint)
     print(f"  Loaded from {model_path}")
 
-    for prefix, pkl_name in [("phase1", "phase1_prepared.pkl"), ("train", "train_prepared.pkl")]:
+    for prefix, pkl_name in [("phase1", "phase1_prepared.pkl"), ("phase2", "phase2_prepared.pkl"), ("train", "train_prepared.pkl")]:
         pkl_path = os.path.join(proc_dir, pkl_name)
         if not os.path.exists(pkl_path):
             print(f"\nSkipping {prefix} — {pkl_name} not found")
@@ -109,7 +108,7 @@ def main():
         df  = pd.read_pickle(pkl_path)
         ids = df["itemId"].values
 
-        text_emb = np.load(os.path.join(emb_dir, f"{prefix}_ft_embeddings.npy")).astype(np.float32)
+        text_emb = np.load(os.path.join(emb_dir, f"{prefix}_{embed_tag}_embeddings.npy")).astype(np.float32)
         img_emb  = np.load(os.path.join(emb_dir, f"{prefix}_img_embeddings.npy")).astype(np.float32)
         has_img  = np.load(os.path.join(emb_dir, f"{prefix}_img_has_image.npy")).astype(np.float32)
 
