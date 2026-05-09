@@ -156,7 +156,7 @@ def run_pipeline(embeddings, k, threshold, resolution, n_cells=400, n_probe=20,
 
 # ── Modes ──────────────────────────────────────────────────────────────────────
 
-def mode_submit(config):
+def mode_submit(config, prefix="phase1"):
     emb_dir    = config["paths"]["embeddings"]
     proc_dir   = config["paths"]["processed_data"]
     sub_dir    = config["paths"]["submissions"]
@@ -171,12 +171,12 @@ def mode_submit(config):
     os.makedirs(sub_dir, exist_ok=True)
 
     embed_tag = config.get("embedding", {}).get("embed_tag")
-    print(f"Loading phase1 embeddings (tag={embed_tag})...")
-    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, "phase1", embed_tag=embed_tag)
+    print(f"Loading {prefix} embeddings (tag={embed_tag})...")
+    embeddings, ids, img_emb_raw = load_embeddings(emb_dir, faiss_cfg, prefix, embed_tag=embed_tag)
     print(f"  {len(ids)} items, dim={embeddings.shape[1]}")
 
     scorer  = load_scorer(config)
-    item_df = load_item_metadata(proc_dir, ids, "phase1") if scorer else None
+    item_df = load_item_metadata(proc_dir, ids, prefix) if scorer else None
 
     print(f"\nRunning pipeline (k={k}, threshold={threshold}, resolution={resolution}, algorithm={algorithm})...")
     t0 = time.time()
@@ -188,7 +188,7 @@ def mode_submit(config):
     print_cluster_stats(clusters)
 
     lines = build_submission(clusters, G, ids, algorithm=algorithm)
-    out_path = os.path.join(sub_dir, "submission_phase2.csv")
+    out_path = os.path.join(sub_dir, f"submission_{prefix}.csv")
     with open(out_path, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"\nSaved {out_path} ({len(lines)} groups)")
@@ -266,6 +266,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--validate", action="store_true", help="Validate on labeled train sample")
     parser.add_argument("--grid",     action="store_true", help="Grid search over hyperparameters (requires --validate)")
+    parser.add_argument("--prefix",   default="phase1",   help="Data prefix for submit mode: phase1 or phase2 (default: phase1)")
     args = parser.parse_args()
 
     config = load_config()
@@ -273,4 +274,4 @@ if __name__ == "__main__":
     if args.validate:
         mode_validate(config, grid=args.grid)
     else:
-        mode_submit(config)
+        mode_submit(config, prefix=args.prefix)

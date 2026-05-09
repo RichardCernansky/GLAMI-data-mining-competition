@@ -1,5 +1,5 @@
 paths:
-  raw_data: "data/raw"
+  raw_data: "../phase1/data/raw"
   processed_data: "../phase1/data/processed/"
   embeddings: "../phase1/data/processed/embeddings"  # reuse phase1 embeddings directly
   submissions: "data/submissions"

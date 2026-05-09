@@ -61,7 +61,7 @@ def main(text_only=False):
     tag_suffix = f"_{embed_tag}" if embed_tag else ""
     print(f"  embed_tag={embed_tag!r}  → text files will be {{prefix}}{tag_suffix}_embeddings.npy")
 
-    for prefix, pkl_name in [("phase1", "phase1_prepared.pkl"), ("train", "train_prepared.pkl")]:
+    for prefix, pkl_name in [("phase1", "phase1_prepared.pkl"), ("phase2", "phase2_prepared.pkl"), ("train", "train_prepared.pkl")]:
         pkl_path = os.path.join(proc_dir, pkl_name)
         if not os.path.exists(pkl_path):
             print(f"\nSkipping {prefix} — {pkl_name} not found")
