@@ -67,23 +67,25 @@ def main(text_only=False):
             print(f"\nSkipping {prefix} — {pkl_name} not found")
             continue
 
+    
         print(f"\nLoading {pkl_name}...")
         df  = pd.read_pickle(pkl_path)
         ids = df["itemId"].values
         print(f"  {len(ids)} items")
 
-        print(f"Encoding text with {emb_cfg['model_name']}...")
-        texts    = df.apply(lambda r: build_text(r, emb_cfg["max_description_length"]), axis=1).tolist()
-        st_model = SentenceTransformer(emb_cfg["model_name"])
-        t0       = time.time()
-        text_emb = st_model.encode(texts, batch_size=emb_cfg["batch_size"],
-                                   show_progress_bar=True, normalize_embeddings=True)
-        print(f"  Done in {time.time()-t0:.1f}s, shape: {text_emb.shape}")
+        if False:
+            print(f"Encoding text with {emb_cfg['model_name']}...")
+            texts    = df.apply(lambda r: build_text(r, emb_cfg["max_description_length"]), axis=1).tolist()
+            st_model = SentenceTransformer(emb_cfg["model_name"])
+            t0       = time.time()
+            text_emb = st_model.encode(texts, batch_size=emb_cfg["batch_size"],
+                                    show_progress_bar=True, normalize_embeddings=True)
+            print(f"  Done in {time.time()-t0:.1f}s, shape: {text_emb.shape}")
 
-        emb_file = f"{prefix}{tag_suffix}_embeddings.npy"
-        np.save(os.path.join(emb_dir, emb_file), text_emb.astype(np.float32))
-        np.save(os.path.join(emb_dir, f"{prefix}_ids.npy"), ids)
-        print(f"  Saved {emb_file}")
+            emb_file = f"{prefix}{tag_suffix}_embeddings.npy"
+            np.save(os.path.join(emb_dir, emb_file), text_emb.astype(np.float32))
+            np.save(os.path.join(emb_dir, f"{prefix}_ids.npy"), ids)
+            print(f"  Saved {emb_file}")
 
         # Image embeddings don't depend on text model — skip if already exist or --text-only
         img_out = os.path.join(emb_dir, f"{prefix}_img_embeddings.npy")
