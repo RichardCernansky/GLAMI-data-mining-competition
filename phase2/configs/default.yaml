@@ -10,7 +10,7 @@ embedding:
   # model_name: "paraphrase-multilingual-mpnet-base-v2"  #embed_tag: null
   # model_name: "intfloat/multilingual-e5-large"         #embed_tag: "e5"
   model_name: "data/finetuned-product-encoder"
-  embed_tag: "ft"   # tag appended to filenames: phase1_ft_embeddings.npy, train_ft_embeddings.npy
+  embed_tag: "proj"   # tag appended to filenames: phase1_ft_embeddings.npy, train_ft_embeddings.npy
   batch_size: 32 
   normalize: true
   max_description_length: 500
